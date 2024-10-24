@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/notesdb
+    depends_on:
+      - mongo
+    networks:
+      - public-network
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: '512M'
+    user: appuser
+    command: bash -c "node server.js"
+
+  mongo:
+    image: mongo:8.0.1
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - internal-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: '512M'
+
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    environment:
+      CONTAINERS: 1
+      IMAGES: 1
+      NETWORKS: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - internal-network
+
+  watchtower:
+    image: containrrr/watchtower:1.7.1
+    environment:
+      - WATCHTOWER_POLL_INTERVAL=86400  # 24h
+    command: --host http://docker-socket-proxy:2375
+    networks:
+      - internal-network
+
+volumes:
+  mongo-data:
+
+networks:
+  public-network:
+    driver: bridge
+  internal-network:
+    driver: bridge
+    internal: true
